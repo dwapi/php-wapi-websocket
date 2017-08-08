@@ -1,0 +1,19 @@
+{
+    "name": "nyariv/wapi-websocket",
+    "description": "The standard WAPI websocket.",
+    "require": {
+        "nyariv/wapi": "dev-master"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nir Yariv",
+            "email": "nir@dofinity.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {"Wapi\\Daemon\\Websocket\\": "src/Websocket"}
+    }
+}
