@@ -136,8 +136,9 @@ class SystemMessageHandler extends MessageHandlerBase {
   }
   
   public function clearLogs() {
-    $error_handler = ErrorHandler::getInstance();
-    $error_handler->clearErrors();
+    if($error_handler = ErrorHandler::getInstance()) {
+      $error_handler->clearErrors();
+    }
   }
   
 }

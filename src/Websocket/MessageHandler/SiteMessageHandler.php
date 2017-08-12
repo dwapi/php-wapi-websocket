@@ -3,7 +3,6 @@ namespace Wapi\Daemon\Websocket\MessageHandler;
 
 use Wapi\Daemon\Websocket\App;
 use Wapi\Daemon\Websocket\ClientManager;
-use Wapi\ErrorHandler;
 use Wapi\Daemon\Websocket\ServiceManager;
 use Wapi\Exception\AccessDenied;
 use Wapi\Exception\ClockMismatch;

@@ -6,6 +6,7 @@ use Wapi\Exception\SiteInaccessible;
 use Wapi\Exception\WapiException;
 use Ratchet\ConnectionInterface;
 use Wapi\Daemon\Websocket\ServiceManager;
+use Wapi\Protocol\Protocol;
 
 class ClientManager extends \Wapi\ClientManager {
   
@@ -69,20 +70,17 @@ class ClientManager extends \Wapi\ClientManager {
       $path = '/';
       $method = 'user_disconnect';
       $payload = NULL;
-      $time = time();
       $secret = $site->site_secret;
       $user_token = $user->token;
   
-      $body = [
+      $additional = [
         'path' => $path,
-        'method' => $method,
-        'timestamp' => $time,
-        'data' => $payload,
-        'check' => Message::sign("$secret:$user_token:$time:$path:$method:", $payload),
       ];
+  
+      $body = Protocol::buildMessage($secret, $method, $payload, $additional);
       
-      $user->site->send('session', $user->token, $body)->then(NULL, function(WapiException $e){
-        ErrorHandler::getInstance()->logException($e);
+      $user->site->send('session', $user_token, $body)->then(NULL, function(WapiException $e){
+        ErrorHandler::logException($e);
       });
       
       $this->users[$user_id] = NULL;

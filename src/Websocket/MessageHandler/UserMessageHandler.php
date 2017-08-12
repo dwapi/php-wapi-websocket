@@ -16,6 +16,7 @@ use Wapi\Daemon\Websocket\User;
 use Psr\Http\Message\ResponseInterface;
 use Wapi\Daemon\Websocket\ServiceManager;
 use Wapi\MessageHandler\MessageHandlerBase;
+use Wapi\Protocol\Protocol;
 
 class UserMessageHandler extends MessageHandlerBase {
   
@@ -81,14 +82,12 @@ class UserMessageHandler extends MessageHandlerBase {
       $secret = $site->site_secret;
       $user_token = $user->token;
       
-      $body = [
+      $additional = [
         'path' => $path,
         'page' => $page,
-        'method' => $method,
-        'timestamp' => $time,
-        'data' => $payload,
-        'check' => Message::sign("$secret:$user_token:$time:$path:$method:", $payload),
       ];
+      
+      $body = Protocol::buildMessage($secret, $method, $payload, $additional);
       
       $that = $this;
   
