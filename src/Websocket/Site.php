@@ -67,6 +67,10 @@ class Site {
     $this->rps = $rps;
   }
   
+  public function id() {
+    return $this->site_secret;
+  }
+  
   public function ping() {
     $this->last_access = time();
   }

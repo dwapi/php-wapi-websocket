@@ -69,7 +69,7 @@ class SystemMessageHandler extends MessageHandlerBase {
     foreach($client_manager->sites AS $site) {
       $user_count = 0;
       foreach($client_manager->users AS $user) {
-        if($user->site->site_secret == $site->site_secret) {
+        if($user->site->id() == $site->id()) {
           $user_count++;
         }
       }

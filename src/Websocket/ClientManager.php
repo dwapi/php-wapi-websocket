@@ -35,14 +35,14 @@ class ClientManager extends \Wapi\ClientManager {
     $loop = ServiceManager::loop();
     $site->processTimer = $loop->addPeriodicTimer(1/$site->rps, [$site, 'processMessageQueue']);
     $site->purgeTimer = $loop->addPeriodicTimer(2, [$site, 'purgeTimedoutMessages']);
-    return  $this->sites[$site->site_secret] = $site;
+    return  $this->sites[$site->id()] = $site;
   }
   
   public function siteRemove(Site $site) {
     $loop = ServiceManager::loop();
     $loop->cancelTimer($site->processTimer);
     $loop->cancelTimer($site->purgeTimer);
-    unset($this->sites[$site->site_secret]);
+    unset($this->sites[$site->id()]);
   }
   
   public function getSiteByToken($token) {
@@ -148,7 +148,7 @@ class ClientManager extends \Wapi\ClientManager {
     $users = [];
     
     foreach($this->users AS $user) {
-      if($user->site->site_secret == $site->site_secret) {
+      if($user->site->id() == $site->id()) {
         foreach($groups AS $group) {
           if($user->hasGroup($group_category, $group)) {
             $users[$user->id()] = $user;
