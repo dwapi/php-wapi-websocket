@@ -68,6 +68,7 @@ class SiteMessageHandler extends MessageHandlerBase {
   
   public function userRegister() {
     $client_manager = ServiceManager::clientManager();
+    $app = ServiceManager::app();
     $data = $this->message->data;
     $site = $this->site;
     
@@ -82,6 +83,7 @@ class SiteMessageHandler extends MessageHandlerBase {
       $client_manager->userAdd($user);
       $response = [
         'user_public_token' => $user->public_token,
+        'websocket_address' => $app->address,
       ];
       return $response;
     } else {
