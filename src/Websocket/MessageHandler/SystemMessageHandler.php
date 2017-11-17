@@ -12,21 +12,58 @@ use Wapi\Exception\MethodNotFound;
 use Wapi\Exception\ParametersInvalid;
 use Wapi\Message;
 use Wapi\Daemon\Websocket\Site;
-use Wapi\Daemon\Websocket\User;
+use Wapi\Daemon\Websocket\Session;
 use Wapi\MessageHandler\MessageHandlerBase;
 
 class SystemMessageHandler extends MessageHandlerBase {
   
-  static function getMethods() {
-    return [
-      'status' => 'status',
-      'allowed_sites' => 'allowedSites',
-      'clear_logs' => 'clearLogs',
+  public function getMethods() {
+    $methods = [];
+  
+    $methods['status'] = [
+      'callback' => [$this, 'status'],
+      'schema' => [],
     ];
+  
+    $methods['allowed_sites'] = [
+      'callback' => [$this, 'allowedSites'],
+      'schema' => [
+        'sites' => [
+          'type' => 'assoc',
+          'multi' => TRUE,
+          'required' => TRUE,
+          'children' => [
+            'site_key' => [
+              'type' => 'string',
+              'required' => TRUE,
+            ],
+            'site_token' => [
+              'type' => 'string',
+              'required' => TRUE,
+            ],
+            'address' => [
+              'type' => 'string',
+              'required' => TRUE,
+            ],
+            'rps' => [
+              'type' => 'integer',
+              'required' => TRUE,
+            ],
+          ],
+        ],
+      ],
+    ];
+  
+    $methods['clear_logs'] = [
+      'callback' => [$this, 'clearLogs'],
+      'schema' => [],
+    ];
+    
+    return $methods;
   }
   
   static function isApplicable(Message $message) {
-    if(!($message->client->getPath() == '/wapi/system')) {
+    if(!($message->client->getRequestPath() == '/wapi/system')) {
       return FALSE;
     }
     return TRUE;
@@ -56,7 +93,7 @@ class SystemMessageHandler extends MessageHandlerBase {
       'uptime' => ServiceManager::app()->uptime(),
       'mps' => ceil(array_sum(ServiceManager::app()->mpm)/10),
       'client_count' => count($client_manager->clients),
-      'user_count' => count($client_manager->users),
+      'session_count' => count($client_manager->sessions),
       'sites' => [],
       'errors' => [],
     ];
@@ -67,15 +104,10 @@ class SystemMessageHandler extends MessageHandlerBase {
     }
     
     foreach($client_manager->sites AS $site) {
-      $user_count = 0;
-      foreach($client_manager->users AS $user) {
-        if($user->site->id() == $site->id()) {
-          $user_count++;
-        }
-      }
+      $session_count = count($site->sessions);
       $data['sites'][] = [
         'base_url' => $site->base_url,
-        'users' => $user_count,
+        'sessions' => $session_count,
       ];
     }
     
@@ -108,20 +140,20 @@ class SystemMessageHandler extends MessageHandlerBase {
     return $cpu;
   }
   
-  public function allowedSites() {
+  public function allowedSites($data) {
     $client_manager = ServiceManager::clientManager();
     $existing = &$client_manager->sites;
-    $allowed_sites = $this->message->data;
-    $allowed_tokens = array_map(function($element){ return $element['site_token']; }, $allowed_sites);
+    $allowed_sites = $data['sites'];
+    $allowed_keys = array_map(function($element){ return $element['site_key']; }, $allowed_sites);
     foreach($existing AS $token => $site) {
-      if(!in_array($site->site_secret, $allowed_tokens)) {
+      if(!in_array($site->site_key, $allowed_keys)) {
         $client_manager->siteRemove($site);
       }
     }
     
     foreach($allowed_sites AS $allowed_site) {
-      if(!($site = $client_manager->getSiteByToken($allowed_site['site_token']))) {
-        $site = new Site($allowed_site['site_token'], $allowed_site['address'], $allowed_site['rps']);
+      if(!($site = $client_manager->getSite($allowed_site['site_key']))) {
+        $site = new Site($allowed_site['site_key'], $allowed_site['site_token'], $allowed_site['address'], $allowed_site['rps']);
         $client_manager->siteAdd($site);
       } else {
         $site->base_url = $allowed_site['address'];

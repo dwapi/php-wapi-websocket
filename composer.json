@@ -1,6 +1,12 @@
 {
     "name": "nyariv/wapi-websocket",
     "description": "The standard WAPI websocket.",
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/nyariv/Ratchet"
+        }
+    ],
     "require": {
         "nyariv/wapi": "dev-master"
     },

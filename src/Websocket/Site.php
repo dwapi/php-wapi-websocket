@@ -18,6 +18,11 @@ class Site {
   /**
    * @var string
    */
+  public $site_key;
+  
+  /**
+   * @var string
+   */
   public $site_secret;
   
   /**
@@ -29,11 +34,6 @@ class Site {
    * @var integer
    */
   public $rps;
-  
-  /**
-   * @var string
-   */
-  protected $token;
   
   /**
    * @var integer
@@ -60,19 +60,33 @@ class Site {
    */
   public $purgeTimer;
   
-  public function __construct($site_secret, $base_url, $rps = 10) {
+  /**
+   * @var \Wapi\Daemon\Websocket\Session[]
+   */
+  public $sessions = [];
+  
+  public function __construct($site_key, $site_secret, $base_url, $rps = 10) {
     $this->creation_time = time();
+    $this->site_key = $site_key;
     $this->site_secret = $site_secret;
     $this->base_url = $base_url;
     $this->rps = $rps;
   }
   
   public function id() {
-    return $this->site_secret;
+    return $this->site_key;
   }
   
   public function ping() {
     $this->last_access = time();
+  }
+  
+  public function addSession(Session $session) {
+    $this->sessions[$session->id()] = $session;
+  }
+  
+  public function removeSession(Session $session) {
+    unset($this->sessions[$session->id()]);
   }
   
   public function processMessageQueue() {
@@ -181,9 +195,9 @@ class Site {
     }
   }
   
-  public function purgeUserMessages(User $user) {
+  public function purgeSessionMessages(Session $session) {
     foreach($this->messageQueue AS $mid => $values) {
-      if($values['session_id'] == $user->token) {
+      if($values['session_id'] == $session->token) {
         unset($this->messageQueue[$mid]);
       }
     }

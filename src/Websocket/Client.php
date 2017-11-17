@@ -7,26 +7,27 @@ use Ratchet\ConnectionInterface;
 class Client extends \Wapi\Client {
   
   /**
-   * @var User|NULL
+   * @var Session|NULL
    */
-  public $user;
+  public $session;
   
   /**
    * @var string
    */
   public $page;
   
-  public function __construct(ConnectionInterface $conn, Request $request, User $user = NULL) {
+  public function __construct(ConnectionInterface $conn, Request $request, Session $session = NULL) {
     parent::__construct($conn, $request);
-    $this->user = $user;
+    $this->session = $session;
   }
   
   public function isReady() {
-    return $this->user ? TRUE : FALSE;
+    return $this->session ? TRUE : FALSE;
   }
   
-  public function assignUser(User $user) {
-    $this->user = $user;
+  public function assignSession(Session $session) {
+    $session->addClient($this);
+    $this->session = $session;
   }
   
 }

@@ -27,7 +27,7 @@ class App extends \Wapi\App {
     return [
       '\Wapi\Daemon\Websocket\MessageHandler\SystemMessageHandler',
       '\Wapi\Daemon\Websocket\MessageHandler\SiteMessageHandler',
-      '\Wapi\Daemon\Websocket\MessageHandler\UserMessageHandler'
+      '\Wapi\Daemon\Websocket\MessageHandler\SessionMessageHandler'
     ];
   }
   

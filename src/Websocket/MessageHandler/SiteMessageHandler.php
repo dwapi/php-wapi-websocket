@@ -10,7 +10,7 @@ use Wapi\Exception\MessageInvalid;
 use Wapi\Exception\MethodNotFound;
 use Wapi\Exception\ParametersInvalid;
 use Wapi\Daemon\Websocket\Site;
-use Wapi\Daemon\Websocket\User;
+use Wapi\Daemon\Websocket\Session;
 use Wapi\Message;
 use Wapi\MessageHandler\MessageHandlerBase;
 
@@ -21,19 +21,123 @@ class SiteMessageHandler extends MessageHandlerBase {
    */
   public $site;
   
-  static function getMethods() {
-    return [
-      'ping' => 'ping',
-      'user_register' => 'userRegister',
-      'user_remove' => 'userRemove',
-      'user_groups' => 'userGroups',
-      'user_send' => 'userSend',
-      'broadcast' => 'broadcast'
+  public function getMethods() {
+    $methods = [];
+  
+    $methods['ping'] = [
+      'callback' => [$this, 'ping'],
+      'schema' => [],
     ];
+  
+    $methods['session_register'] = [
+      'callback' => [$this, 'sessionRegister'],
+      'schema' => [
+        'private_session_token' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'language' => [
+          'type' => 'string',
+        ],
+      ],
+    ];
+  
+    $methods['session_remove'] = [
+      'callback' => [$this, 'sessionRemove'],
+      'schema' => [
+        'token' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+      ],
+    ];
+  
+    $methods['session_send'] = [
+      'callback' => [$this, 'sessionSend'],
+      'schema' => [
+        'path' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'method' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'page' => [
+          'type' => 'string',
+        ],
+        'session_tokens' => [
+          'type' => 'string',
+          'required' => TRUE,
+          'multi' => TRUE,
+        ],
+      ],
+    ];
+  
+    $methods['subscribe'] = [
+      'callback' => [$this, 'subscribe'],
+      'schema' => [
+        'path' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'session_tokens' => [
+          'type' => 'string',
+          'required' => TRUE,
+          'multi' => TRUE,
+        ],
+        'groups' => [
+          'type' => 'array',
+          'required' => TRUE,
+        ],
+      ],
+    ];
+  
+    $methods['unsubscribe'] = [
+      'callback' => [$this, 'unsubscribe'],
+      'schema' => [
+        'path' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'session_tokens' => [
+          'type' => 'string',
+          'required' => TRUE,
+          'multi' => TRUE,
+        ],
+        'groups' => [
+          'type' => 'array',
+          'required' => TRUE,
+        ],
+      ],
+    ];
+  
+    $methods['broadcast'] = [
+      'callback' => [$this, 'broadcast'],
+      'schema' => [
+        'path' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'method' => [
+          'type' => 'string',
+          'required' => TRUE,
+        ],
+        'data' => [
+          'type' => 'any',
+        ],
+        'groups' => [
+          'type' => 'array',
+          'required' => TRUE,
+        ],
+      ],
+    ];
+    
+    return $methods;
   }
   
   static function isApplicable(Message $message) {
-    if(!($message->client->getPath() == '/wapi/site')) {
+    if(!($message->client->getRequestPath() == '/wapi/site')) {
       return FALSE;
     }
     return TRUE;
@@ -41,19 +145,13 @@ class SiteMessageHandler extends MessageHandlerBase {
   
   public function access() {
     $client_manager = ServiceManager::clientManager();
-    $sites = $client_manager->sites;
     
     if(!($this->message->method == 'ping') && !$this->message->verifyTimestamp()) {
       throw new ClockMismatch();
     }
-  
-    $found = FALSE;
-    foreach($sites AS $site) {
-      /** @var Site $site */
-      if($this->message->verifyCheck($site->site_secret)) {
-        $found = $site;
-      }
-    }
+    
+    $site_key = $this->message->get('site_key');
+    $found = $client_manager->getSite($site_key);
     
     if(!$found) {
       throw new AccessDenied();
@@ -66,75 +164,82 @@ class SiteMessageHandler extends MessageHandlerBase {
     return time();
   }
   
-  public function userRegister() {
+  public function sessionRegister($data) {
     $client_manager = ServiceManager::clientManager();
     $app = ServiceManager::app();
-    $data = $this->message->data;
     $site = $this->site;
     
-    if($site && !empty($data['private_user_token'])) {
-      $language = !empty($data['language']) ? $data['language'] : 'en';
-      if(!empty($client_manager->users[$data['private_user_token']])) {
-        $user = $client_manager->users[$data['private_user_token']];
-        $user->language = $language;
-      } else {
-        $user = new User($site, $data['private_user_token'], $language);
-      }
-      $client_manager->userAdd($user);
-      $response = [
-        'user_public_token' => $user->public_token,
-        'websocket_address' => $app->address,
-      ];
-      return $response;
+    $language = !empty($data['language']) ? $data['language'] : 'en';
+    if($session = $client_manager->getSessionByToken($data['private_session_token'])) {
+      $session->language = $language;
     } else {
-      throw new ParametersInvalid();
+      $session = new Session($site, $data['private_session_token'], $language);
     }
+    $client_manager->sessionAdd($session);
+    $response = [
+      'session_public_token' => $session->public_token,
+      'websocket_address' => $app->address,
+    ];
+    return $response;
   }
   
-  public function userSend() {
+  public function sessionSend($data) {
     $client_manager = ServiceManager::clientManager();
-    $data = $this->message->data;
-    if(empty($data['method']) || empty($data['user_token']) || empty($data['path'])) {
-      throw new ParametersInvalid();
-    }
     
     $path = $data['path'];
     $page = empty($data['page']) ? NULL : $data['page'];
     
-    $user = $client_manager->getUserByToken($data['user_token']);
-    $clients = $client_manager->getUserClients($user);
-    foreach($clients AS $client) {
-      if(($client->getPath() == $path) && (!$page || ($client->page == $page))) {
-        $body = [
-          'method' => $data['method'],
-          'data' => isset($data['data']) ? $data['data'] : NULL,
-        ];
-        $client->send($body);
+    foreach($data['session_tokens'] AS $token) {
+      if($session = $client_manager->getSessionByToken($token)) {
+        foreach ($session->getClients() AS $client) {
+          if ($client->hasPath($path) && (!$page || ($client->page == $page))) {
+            $body = [
+              'path' => $path,
+              'method' => $data['method'],
+              'data' => isset($data['data']) ? $data['data'] : NULL,
+            ];
+            $client->send($body);
+          }
+        }
       }
     }
   }
   
-  public function broadcast() {
+  public function subscribe($data) {
     $client_manager = ServiceManager::clientManager();
-    $data = $this->message->data;
-    if(empty($data['method']) || empty($data['path'])) {
-      throw new ParametersInvalid();
-    }
-  
+    
     $path = $data['path'];
-    $page = empty($data['page']) ? NULL : $data['page'];
-  
-    $user = $client_manager->getUserByToken($data['user_token']);
-    $clients = $client_manager->getUserClients($user);
-    foreach($clients AS $client) {
-      if(($client->getPath() == $path) && (!$page || ($client->page == $page))) {
-        $body = [
-          'method' => $data['method'],
-          'data' => isset($data['data']) ? $data['data'] : NULL,
-        ];
-        $client->send($body);
+    $groups = $data['groups'];
+    
+    foreach($data['sessions'] AS $token) {
+      if($session = $client_manager->getSessionByToken($token)) {
+        $client_manager->getGroupsManager()->subscribeSession($path, $session, $groups);
       }
     }
+  }
+  
+  public function unsubscribe($data) {
+    $client_manager = ServiceManager::clientManager();
+    
+    $path = $data['path'];
+    $groups = $data['groups'];
+  
+    foreach($data['sessions'] AS $token) {
+      if($session = $client_manager->getSessionByToken($token)) {
+        $client_manager->getGroupsManager()->unsubscribeSession($path, $session, $groups);
+      }
+    }
+  }
+  
+  public function broadcast($data) {
+    $client_manager = ServiceManager::clientManager();
+  
+    $path = $data['path'];
+    $groups = $data['groups'];
+    $method = $data['method'];
+    $data = !empty($data['data']) ? $data['data'] : NULL;
+    
+    return $client_manager->broadcast($this->site, $path, $groups, $method,  $data);
   }
   
 }
