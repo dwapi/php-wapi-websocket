@@ -16,4 +16,11 @@ class ServiceManager extends \Wapi\ServiceManager {
   static function clientManager() {
     return parent::service('client_manager');
   }
+
+  /**
+   * @return \Clue\React\Buzz\Browser
+   */
+  static function browser() {
+    return parent::service('browser');
+  }
 }

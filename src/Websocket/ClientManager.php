@@ -105,7 +105,7 @@ class ClientManager extends \Wapi\ClientManager {
   public function clientRemove(\Wapi\Client $client = NULL) {
     if($client) {
       /** @var \Wapi\Daemon\Websocket\Client $client */
-      $session = $client->session;
+      $session = isset($client->session) ? $client->session : NULL;
       if($session && !$session->getClients()) {
         $that = $this;
         ServiceManager::loop()->addTimer(15, function() use ($that, $session) {

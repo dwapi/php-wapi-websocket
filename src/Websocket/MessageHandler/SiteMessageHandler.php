@@ -154,7 +154,7 @@ class SiteMessageHandler extends MessageHandlerBase {
     $found = $client_manager->getSite($site_key);
     
     if(!$found) {
-      throw new AccessDenied();
+      throw new AccessDenied('Site not found');
     }
     
     $this->site = $found;

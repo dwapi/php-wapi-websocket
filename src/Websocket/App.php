@@ -33,6 +33,7 @@ class App extends \Wapi\App {
   
   public function init() {
     $this->client_manager = ServiceManager::service('client_manager', new ClientManager());
+    ServiceManager::service('browser', new Browser(ServiceManager::loop()));
     SystemMessageHandler::getCpuUsage();
     ServiceManager::loop()->addPeriodicTimer(1, function(){
       $app = ServiceManager::app();
