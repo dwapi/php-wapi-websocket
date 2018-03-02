@@ -149,7 +149,7 @@ class SiteMessageHandler extends MessageHandlerBase {
     if(!($this->message->method == 'ping') && !$this->message->verifyTimestamp()) {
       throw new ClockMismatch();
     }
-    
+
     $site_key = $this->message->get('site_key');
     $found = $client_manager->getSite($site_key);
     
@@ -183,6 +183,14 @@ class SiteMessageHandler extends MessageHandlerBase {
     return $response;
   }
   
+  public function sessionRemove($data) {
+    $client_manager = ServiceManager::clientManager();
+    $session = $client_manager->getSessionByToken($data['token']);
+    if($session) {
+      $client_manager->sessionRemove($session);
+    }
+  }
+  
   public function sessionSend($data) {
     $client_manager = ServiceManager::clientManager();
     
@@ -211,7 +219,7 @@ class SiteMessageHandler extends MessageHandlerBase {
     $path = $data['path'];
     $groups = $data['groups'];
     
-    foreach($data['sessions'] AS $token) {
+    foreach($data['session_tokens'] AS $token) {
       if($session = $client_manager->getSessionByToken($token)) {
         $client_manager->getGroupsManager()->subscribeSession($path, $session, $groups);
       }
@@ -224,11 +232,11 @@ class SiteMessageHandler extends MessageHandlerBase {
     $path = $data['path'];
     $groups = $data['groups'];
   
-    foreach($data['sessions'] AS $token) {
+    foreach($data['session_tokens'] AS $token) {
       if($session = $client_manager->getSessionByToken($token)) {
         $client_manager->getGroupsManager()->unsubscribeSession($path, $session, $groups);
       }
-    }
+    };
   }
   
   public function broadcast($data) {

@@ -1,6 +1,7 @@
 <?php
 namespace Wapi\Daemon\Websocket;
 
+use Clue\React\Buzz\Browser;
 use Wapi\Daemon\Websocket\MessageHandler\SystemMessageHandler;
 use Wapi\Daemon\Websocket\ServiceManager;
 

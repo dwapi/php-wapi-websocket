@@ -39,7 +39,13 @@ class ClientManager extends \Wapi\ClientManager {
     parent::__construct();
     $this->groupsManager = ServiceManager::service('groups_manager', new GroupsManager());
   }
-  
+
+  public function clientCreate(ConnectionInterface $conn) {
+    /** @var \GuzzleHttp\Psr7\Request $request */
+    $request = $conn->httpRequest;
+    return new Client($conn, $request);
+  }
+
   /**
    * @return \Wapi\Daemon\Websocket\GroupsManager
    */
@@ -66,13 +72,13 @@ class ClientManager extends \Wapi\ClientManager {
   }
   
   public function sessionAdd(Session $session) {
-    $this->sessions[$session->token] = $session;
+    $this->sessions[$session->id()] = $session;
     $this->sessionsPublic[$session->public_token] = $session;
     $session->site->addSession($session);
   }
   
   public function sessionRemove(Session $session = NULL) {
-    if($session) {
+    if($session && $this->sessionExists($session)) {
       foreach($session->getClients() AS $i => $client) {
         $this->clientRemove($client);
       }
@@ -95,9 +101,12 @@ class ClientManager extends \Wapi\ClientManager {
       $session->site->send('session', $session_token, $body)->then(NULL, function(WapiException $e){
         ErrorHandler::logException($e);
       });
+      
+      $this->groupsManager->deleteSession($session);
   
       unset($this->sessions[$session->token]);
       unset($this->sessionsPublic[$session->public_token]);
+      
       $session->site->removeSession($session);
     }
   }
@@ -116,6 +125,10 @@ class ClientManager extends \Wapi\ClientManager {
       }
       parent::clientRemove($client);
     }
+  }
+  
+  public function sessionExists(Session $session) {
+    return !empty($this->sessions[$session->id()]);
   }
   
   public function getSessionByToken($token, $by_public_token = FALSE) {
