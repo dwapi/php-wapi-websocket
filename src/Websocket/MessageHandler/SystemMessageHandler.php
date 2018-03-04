@@ -146,15 +146,17 @@ class SystemMessageHandler extends MessageHandlerBase {
     $allowed_sites = $data['sites'];
     $allowed_keys = array_map(function($element){ return $element['site_key']; }, $allowed_sites);
     foreach($existing AS $token => $site) {
-      if(!in_array($site->site_key, $allowed_keys)) {
+      if(!in_array($site->id(), $allowed_keys)) {
         $client_manager->siteRemove($site);
       }
     }
     
+    $new_sites_count = 0;
     foreach($allowed_sites AS $allowed_site) {
       if(!($site = $client_manager->getSite($allowed_site['site_key']))) {
         $site = new Site($allowed_site['site_key'], $allowed_site['site_token'], $allowed_site['address'], $allowed_site['rps']);
         $client_manager->siteAdd($site);
+        $new_sites_count++;
       } else {
         $site->base_url = $allowed_site['address'];
         if($site->rps != $allowed_site['rps']) {
@@ -165,6 +167,8 @@ class SystemMessageHandler extends MessageHandlerBase {
         }
       }
     }
+    
+    return $new_sites_count;
   }
   
   public function clearLogs() {

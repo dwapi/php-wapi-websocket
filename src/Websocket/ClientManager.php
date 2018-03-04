@@ -64,6 +64,11 @@ class ClientManager extends \Wapi\ClientManager {
     $loop = ServiceManager::loop();
     $loop->cancelTimer($site->processTimer);
     $loop->cancelTimer($site->purgeTimer);
+    
+    foreach($site->sessions AS $session) {
+      $this->sessionRemove($session);
+    }
+    
     unset($this->sites[$site->id()]);
   }
   

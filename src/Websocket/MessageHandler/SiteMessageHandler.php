@@ -150,6 +150,7 @@ class SiteMessageHandler extends MessageHandlerBase {
       throw new ClockMismatch();
     }
 
+
     $site_key = $this->message->get('site_key');
     $found = $client_manager->getSite($site_key);
     
